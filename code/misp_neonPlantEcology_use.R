@@ -11,7 +11,7 @@
 # devtools::install_github("NEONScience/neonPlants")
 
 library(pacman)
-library(neonPlants)
+#library(neonPlants)
 
 pacman::p_load(tidyverse, neonUtilities, neonPlantEcology)
 
@@ -29,3 +29,9 @@ species_occurrence_matrix <- npe_community_matrix(d,
                                                   binary=FALSE)
 
 npe_cm_metadata(species_occurrence_matrix)
+
+
+SCBI <- npe_download(sites = "SCBI", token = NEON_TOKEN) 
+SCBI_occ_mat <- npe_community_matrix(SCBI,
+                                     scale = "1m",
+                                     binary = FALSE)
