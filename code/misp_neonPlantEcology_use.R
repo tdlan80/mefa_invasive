@@ -31,6 +31,21 @@ species_occurrence_matrix <- npe_community_matrix(d,
 npe_cm_metadata(species_occurrence_matrix)
 
 
+## Get info on select sites
+select_sites <- c("SCBI", "GRSM", "HARV")
+select_data <- npe_download(sites = select_sites, token = NEON_TOKEN) 
+
+species_occurrence_matrix <- npe_community_matrix(select_data, 
+                                                  scale = "1m", 
+                                                  binary=FALSE)
+
+npe_cm_metadata(species_occurrence_matrix) %>% View()
+npe_summary(select_data, scale = "1m") %>% View()
+
+species_data_lf <- npe_longform(select_data)
+species_spatial <- npe_plot_centroids(species_occurrence_matrix)
+
+
 SCBI <- npe_download(sites = "SCBI", token = NEON_TOKEN) 
 SCBI_occ_mat <- npe_community_matrix(SCBI,
                                      scale = "1m",
