@@ -1,9 +1,9 @@
 # ##############################################################################
 # Introduction:
-#   1) Analyze the annual Landsat-based NPP data at the base plots of
-#      all NEON sites (v11).
+#   1) Analyze the annual Landsat-based NPP data at the NEON base plots of
+#      interest (v11).
 # 
-# Last updated: 7/24/2025.
+# Last updated: 9/26/2025.
 # 
 # Author: Chenyang Wei (chenyangwei.cwei@gmail.com)
 # ##############################################################################
@@ -41,7 +41,8 @@ setwd("..")
 # 1) Load the data. --------------------------------------------------------
 
 # Local NEON base plots with annual NPP data.
-annualNPP_NEONplots_FileName_Str <- "WtdAvg_AnnualNPP_2013to2020_AllBasePlots"
+annualNPP_NEONplots_FileName_Str <- 
+  "WtdAvg_AnnualNPP_2013to2020_3sitesV11_PPPC2025plantDiv"
 
 annualNPP_NEONplots_SF <- st_read(
   dsn = file.path(
@@ -57,18 +58,24 @@ annualNPP_NEONplots_DF <- annualNPP_NEONplots_SF |>
   st_drop_geometry()
 
 annualNPP_NEONplots_DF |> head()
-annualNPP_NEONplots_DF |> nrow() # 2442.
+annualNPP_NEONplots_DF |> nrow() # 95
+
+annualNPP_NEONplots_DF <- annualNPP_NEONplots_DF |> 
+  mutate(subtype = as.factor(subtype))
+
+annualNPP_NEONplots_DF |> select(subtype) |> 
+  summary()
 
 
 # 2) Address the NPP data gap. --------------------------------------------
 
 # Check the original NPP data gap columns.
-annualNPP_NEONplots_DF |> 
-  select(starts_with("NPP_m_")) |> 
+annualNPP_NEONplots_DF |>
+  select(starts_with("NPP_m_")) |>
   summary()
 
 # Remove the NEON plots with annual NPP data < 0.95.
-annualNPP_Filtered_DF <- annualNPP_NEONplots_DF |> 
+annualNPP_Filtered_DF <- annualNPP_NEONplots_DF |>
   filter(
     NPP_m_2013 >= 0.95 &
       NPP_m_2014 >= 0.95 &
@@ -81,16 +88,17 @@ annualNPP_Filtered_DF <- annualNPP_NEONplots_DF |>
   )
 
 # Check the filtered NPP data.
-annualNPP_Filtered_DF |> nrow() # 1692.
-annualNPP_Filtered_DF |> 
-  select(starts_with("NPP_m_")) |> 
-  summary() # Min.: 0.9529.
+annualNPP_Filtered_DF |> nrow() # 87
+
+annualNPP_Filtered_DF |>
+  select(starts_with("NPP_m_")) |>
+  summary() # Min.: 0.9650
 
 
 # 3) Analyze the annual NPP data. -----------------------------------------
 
 # Select the columns of interest.
-annualNPP_Wide_DF <- annualNPP_Filtered_DF |> 
+annualNPP_Wide_DF <- annualNPP_Filtered_DF |>
   select(
     siteID,
     plotID,
@@ -102,37 +110,37 @@ annualNPP_Wide_DF <- annualNPP_Filtered_DF |>
     starts_with("NPP_2")
   )
 
-# Save the data frame as a CSV file.
-write_csv(
-  annualNPP_Wide_DF,
-  file.path(
-    "Data",
-    "Landsat_NPP",
-    "AnnualNPP_2013to2020_AllBasePlots_Filtered_WideTable.csv"
-  )
-)
+# # Save the data frame as a CSV file.
+# write_csv(
+#   annualNPP_Wide_DF,
+#   file.path(
+#     "Data",
+#     "Landsat_NPP",
+#     "AnnualNPP_2013to2020_AllBasePlots_Filtered_WideTable.csv"
+#   )
+# )
 
 # Reshape the data to a long format.
-annualNPP_Long_DF <- annualNPP_Wide_DF |> 
+annualNPP_Long_DF <- annualNPP_Wide_DF |>
   pivot_longer(
     cols = starts_with("NPP_"),
     names_to = "Year",
     values_to = "Landsat_NPP"
-  ) |> 
+  ) |>
   mutate(
-    Year = str_remove(Year, "NPP_") |> 
+    Year = str_remove(Year, "NPP_") |>
       as.integer()
   )
 
-# Save the data frame as a CSV file.
-write_csv(
-  annualNPP_Long_DF,
-  file.path(
-    "Data",
-    "Landsat_NPP",
-    "AnnualNPP_2013to2020_AllBasePlots_Filtered_LongTable.csv"
-  )
-)
+# # Save the data frame as a CSV file.
+# write_csv(
+#   annualNPP_Long_DF,
+#   file.path(
+#     "Data",
+#     "Landsat_NPP",
+#     "AnnualNPP_2013to2020_AllBasePlots_Filtered_LongTable.csv"
+#   )
+# )
 
 # # Read the saved long format data frame.
 # annualNPP_Long_DF <- read_csv(
@@ -144,22 +152,26 @@ write_csv(
 # )
 
 # Convert each column of interest to a factor.
-annualNPP_Long_DF <- annualNPP_Long_DF |> 
+annualNPP_Long_DF <- annualNPP_Long_DF |>
+  mutate(
+    # Remove the " NEON" suffix from site names.
+    siteName = str_remove(siteName, " NEON")
+  ) |>
   mutate(
     siteID = factor(
       siteID
     )
-  ) |> 
+  ) |>
   mutate(
     siteName = factor(
       siteName
     )
-  ) |> 
+  ) |>
   mutate(
     plotID = factor(
       plotID
     )
-  ) |> 
+  ) |>
   mutate(
     plotType = factor(
       plotType
@@ -174,31 +186,37 @@ annualNPP_Long_DF |> summary()
 annualNPP_Long_DF |> head()
 
 # Check the site names.
-unique(annualNPP_Long_DF$siteName) # 39 sites.
+unique(annualNPP_Long_DF$siteName) # 3 sites.
 
 # Summarize the information about site locations,
 #   and order the site names by the summarized latitude.
-annualNPP_SiteInfo_DF <- annualNPP_Long_DF |> 
-  group_by(siteID, siteName) |> 
+annualNPP_SiteInfo_DF <- annualNPP_Long_DF |>
+  group_by(siteID, siteName) |>
   summarise(
     Long_mean = mean(longitude, na.rm = TRUE),
     Lat_mean = mean(latitude, na.rm = TRUE),
     Elv_mean = mean(elevation, na.rm = TRUE)
-  ) |> 
-  ungroup() |> 
+  ) |>
+  ungroup() |>
   arrange(Lat_mean)
 
 # Extract the ordered site names as a vector.
 siteNames_LatOrdered_Vec <- annualNPP_SiteInfo_DF$siteName
 
 # Convert the site names to a factor with the specified order.
-annualNPP_Long_DF <- annualNPP_Long_DF |> 
+annualNPP_Long_DF <- annualNPP_Long_DF |>
   mutate(
     siteName = factor(
       siteName,
       levels = siteNames_LatOrdered_Vec
     )
   )
+
+# Check the number of plot IDs.
+annualNPP_Long_DF |> 
+  pull(plotID) |> 
+  unique() |> 
+  length() # 87
 
 # Visualize the annual NPP data at the level of base plots.
 annualNPP_AllSites_Plt <- annualNPP_Long_DF |> 
@@ -207,13 +225,18 @@ annualNPP_AllSites_Plt <- annualNPP_Long_DF |>
   geom_point(size = 0.1, alpha = 0.5) +
   labs(
     x = "Year",
-    y = "Landsat NPP (kg*C/m^2)"
+    y = "Plot-Level Landsat NPP (kg*C/m²)"
   ) +
-  facet_wrap(~ siteName, ncol = 3, scales = "free_y") +
-  scale_color_viridis_c(
-    name = "Latitude\n(degrees)",
-    direction = -1 # Reverse the color scale.
+  facet_wrap(~ siteName, ncol = 3) +
+  scale_color_gradientn(
+    colors = c("red", "blue"),
+    name = "Site\nAverage\nLatitude\n(degrees)"
   ) +
+  # scale_color_viridis_c(
+  #   name = "Site\nAverage\nLatitude\n(degrees)",
+  #   option = "magma",
+  #   direction = -1 # Reverse the color scale.
+  # ) +
   theme(
     legend.position = "bottom",
     legend.title = element_text(size = 5),
@@ -230,8 +253,8 @@ annualNPP_AllSites_Plt
 
 png(filename = file.path(
   "Figures",
-  "Annual_LandsatNPP_Ordered.png"), 
-  width = 5000, height = 6000, 
+  "Annual_LandsatNPP_LatOrdered_3sites_87plots.png"),
+  width = 4000, height = 3000,
   units = "px", res = 1000)
 annualNPP_AllSites_Plt
 dev.off()
@@ -255,17 +278,30 @@ annualNPP_Summary_DF |> head()
 
 # Visualize the summarized annual NPP data at the site level.
 annualNPP_Summary_Plt <- annualNPP_Summary_DF |> 
-  ggplot(aes(x = Year, y = NPP_median, group = siteName, color = Lat_mean)) +
+  ggplot(aes(x = Year, y = NPP_median, group = Lat_mean, color = Lat_mean)) +
   geom_line(lwd = 0.2, alpha = 0.5) +
   geom_point(size = 0.1, alpha = 0.5) +
-  # Use the viridis color palette.
-  scale_color_viridis_c(
-    name = "Latitude\n(degrees)",
-    direction = -1 # Reverse the color scale.
+  # geom_errorbar( # Add vertical error bars.
+  #   aes(
+  #     ymin = NPP_mean - NPP_sd,
+  #     ymax = NPP_mean + NPP_sd, 
+  #     color = Lat_mean
+  #   ),
+  #   lwd = 0.1,
+  #   show.legend = FALSE
+  # ) +
+  # # Use the viridis color palette.
+  # scale_color_viridis_c(
+  #   name = "Latitude\n(degrees)",
+  #   direction = -1 # Reverse the color scale.
+  # ) +
+  scale_color_gradientn(
+    colors = c("red", "blue"),
+    name = "Site\nAverage\nLatitude\n(degrees)"
   ) +
   labs(
     x = "Year",
-    y = "Site-Level Landsat NPP (kg*C/m^2)"
+    y = "Site-Level Median Landsat NPP (kg*C/m²)"
   ) +
   theme(
     legend.position = "bottom",
@@ -283,7 +319,8 @@ annualNPP_Summary_Plt
 
 png(filename = file.path(
   "Figures",
-  "Annual_LandsatNPP_Summary.png"), 
+  # "Annual_LandsatNPP_MeanSD_3sites_87plots.png"), 
+  "Annual_LandsatNPP_Median_3sites_87plots.png"), 
   width = 4000, height = 3000, 
   units = "px", res = 1000)
 annualNPP_Summary_Plt
