@@ -1,0 +1,164 @@
+---
+title: "Degree of Invasion Exploration"
+author: "Matthew Aiello-Lammens"
+date: "2026-07-25"
+output:
+  word_document: default
+  html_document: default
+---
+
+Read in the data - works on Matt's system
+
+```{r}
+load("processedData/div_1m2_allNeonSites_plantDiv.RData")
+plants <- div_1m2_allNeonSites_plantDiv
+```
+
+Load packages
+
+```{r}
+library(tidyverse)
+library(GGally)
+```
+
+Look at the data
+
+```{r}
+plants_summary <-
+  plants %>%
+  group_by(plotID, subplotID, eventID) %>%
+  summarise(n_obs = n(), n_spec = length(unique(taxonID)))
+
+plants_summary[which(plants_summary$n_obs != plants_summary$n_spec), ]
+
+```
+
+Calculate invasive and total species richness
+
+```{r}
+degree_of_invasion <-
+  plants %>%
+  group_by(siteID, plotID, subplotID, eventID) %>%
+  summarise(n_obs = n(), 
+            s_inv = sum(nativeStatusCode == "I"),
+            s_tot = length(unique(taxonID)),
+            b_inv = sum(percentCover[nativeStatusCode == "I"], na.rm = TRUE),
+            b_tot = sum(percentCover, na.rm = TRUE)) %>%
+  mutate(di_s = s_inv / s_tot,
+         di_b = b_inv / b_tot,
+         di_guo = ((di_s + di_b) / 2))
+
+degree_of_invasion %>%
+  ungroup() %>%
+  filter(!is.na(di_s) | !is.na(di_b) | !is.na(di_guo)) %>%
+  filter(di_s <= 1) %>%
+  select(di_s, di_b, di_guo) %>%
+  GGally::ggpairs(., lower = list(continuous = wrap("points", alpha = 0.1)))
+
+```
+
+
+Get only the most recent measurements for each plot
+
+```{r}
+# Get year from eventID
+degree_of_invasion$eventYEAR <- str_extract(degree_of_invasion$eventID, "\\d{4}$")
+
+# Find most recent year for each plot
+degree_of_invasion_recent <-
+  degree_of_invasion %>%
+  group_by(siteID, plotID, subplotID) %>%
+  mutate(mostRecent = max(eventYEAR)) %>%
+  filter(eventYEAR == mostRecent)
+```
+
+
+
+```{r}
+di_lm <- lm(data = degree_of_invasion, di_b ~ di_s)
+
+summary(di_lm)
+#plot(di_lm)
+
+degree_of_invasion_recent %>%
+  filter(di_s <= 1) %>%
+  ggplot(data = ., aes(x = di_s, y = di_b, color = siteID)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+degree_of_invasion_recent %>%
+  filter(di_s <= 1) %>%
+  ggplot(data = ., aes(x = s_inv, y = di_s, color = siteID)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE)
+
+
+degree_of_invasion %>%
+  filter(di_s <= 1) %>%
+  ggplot(data = ., aes(x = di_s)) +
+  geom_histogram() 
+
+degree_of_invasion %>%
+  filter(di_s <= 1) %>%
+  ggplot(data = ., aes(x = di_b)) +
+  geom_histogram() 
+```
+
+## Woody Biomass Plots
+
+```{r}
+# need to get native/invasive status by itself first
+native_status <-
+  plants %>% 
+  select(taxonID, nativeStatusCode) %>%
+  distinct(taxonID, .keep_all = TRUE)
+
+# read in the woody biomass data set
+woody <- read_csv("processedData/woody_biomass.csv")
+
+# merge the woody data with the native_status table
+woody <-
+  left_join(woody, native_status, by = "taxonID")
+length(which(is.na(woody$nativeStatusCode)))
+
+# Remove dead trees
+woody <-
+  woody %>%
+  filter(liveDeadStatus == "live")
+
+# Find most recent measurement for each tree
+woody_recent <-
+  woody %>%
+  group_by(individualID) %>%
+  mutate(mostRecent = max(year)) %>%
+  filter(year == mostRecent)
+
+# 
+woody_degree_of_invasion <-
+  woody_recent %>%
+  group_by(siteID, plotID, subplotID) %>%
+  summarise(n_obs = n(), 
+            #s_inv = sum(nativeStatusCode == "I"),
+            s_inv = length(unique(taxonID[nativeStatusCode == "I"])),
+            s_tot = length(unique(taxonID)),
+            b_inv = sum(agb_kg[nativeStatusCode == "I"], na.rm = TRUE),
+            b_tot = sum(agb_kg, na.rm = TRUE)) %>%
+  mutate(di_s = s_inv / s_tot,
+         di_b = b_inv / b_tot,
+         di_guo = ((di_s + di_b) / 2))
+
+# How many plots have invasive species?
+sum(woody_degree_of_invasion$s_inv > 0)
+
+ggplot(data = woody_degree_of_invasion, aes(x = di_s, y = di_b, color = siteID)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+
+woody_degree_of_invasion %>%
+  ungroup() %>%
+  select(di_s, di_b, di_guo) %>%
+  ggpairs()
+```
+
+
