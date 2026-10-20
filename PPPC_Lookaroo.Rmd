@@ -1,0 +1,97 @@
+---
+title: "PPPC_Lookaroo"
+output: html_document
+date: "2026-10-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(vegan)
+library(GGally)
+load(file.path("rawData", "NEON", "PPPC", "full_1m_plantDiv.RData"))
+```
+
+WARNING: Output is ugly right now...
+
+Let's summarize the full vegetation data into data at the one by one meter subplot level per year. I'm generating some native and total diversity related stuffs and also the Guo metrics and component parts. 
+
+```{r summarize veg data to one by one data}
+one_meter_summarized <- pppc_1m_plantDiv %>%
+  group_by(plotID, plot_subplot, eventID) %>%
+  summarize(rich = n_distinct(scientificName),
+            nat.rich = n_distinct(scientificName[nativeStatusCode == "N"]),
+            inv.rich = n_distinct(scientificName[nativeStatusCode == "I"]),
+            s = inv.rich / rich,
+            div = diversity(percentCover),
+            nat.div = diversity(percentCover[nativeStatusCode == "N"]),
+            inv.div = diversity(percentCover[nativeStatusCode == "I"]),
+            tot.abund = sum(percentCover, na.rm = TRUE), 
+            nat.tot.abund = sum(percentCover[nativeStatusCode == "N"], na.rm = TRUE),
+            inv.tot.abund = sum(percentCover[nativeStatusCode == "I"], na.rm = TRUE),
+            b = inv.tot.abund / tot.abund, 
+            g = (s + b)/2)
+```
+
+We've got a few possibilities for summarizing the percent cover data from the one by one meter subplots to the twenty by twenty subplots. For now, I'm calculating two versions: The "sum_over_sum" quantity is:
+
+$$
+\frac{\sum Cover_{inv.}}{\sum Cover_{tot.}}
+$$
+
+and the "mean_ratio" quantity is:
+
+$$
+\sum \frac{Cover_{inv.}}{Cover_{tot.}} \div N_{subplots}
+$$
+Note that this second quantity is simply the twenty by twenty meter plot average value of the Guo percent cover component for each one by one meter subplot.
+
+We're struggling to figure out which of these we should use, so I'm also calculating a `diff` column for the difference between these values and an `abs_diff` for the absolute value of these differences. The goal here is to evaluate how different these two options are, and to hopefully learn why they're different by comparing them to the quantities that we think should impact them. They're certainly affected by the invasive and total richness and cover due to how percent cover is quantified in the field. 
+
+```{r}
+twenty_meter_summarized <- one_meter_summarized %>%
+  group_by(plotID, eventID) %>%
+  summarize(sum_over_sum = sum(inv.tot.abund)/sum(tot.abund),
+            mean_ratio = mean(inv.tot.abund/tot.abund), 
+            diff = sum_over_sum - mean_ratio,
+            abs_diff = abs(diff),
+            mean_inv_cover = mean(inv.tot.abund), 
+            mean_tot_cover = mean(tot.abund), 
+            mean_gua_cover = mean(b),
+            mean_inv_richness = mean(inv.rich),
+            mean_tot_richness = mean(rich),
+            mean_gua_richness = mean(s))
+```
+
+Now let's make a plot comparing these two ways to summarize the one by one meter subplot invasive cover at the twenty by twenty meter plot level:
+
+```{r}
+twenty_meter_summarized %>%
+  ggplot(aes(x = mean_ratio, y = sum_over_sum)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  geom_abline(slope = 1, intercept = 0)
+```
+
+The blue line is the best fit line and the black line is the 1:1 line. 
+
+And here's the same thing with labels instead of points:
+
+```{r}
+twenty_meter_summarized %>%
+  ggplot(aes(x = mean_ratio, y = sum_over_sum, 
+             label = paste(plotID, eventID))) + 
+  geom_label() + 
+  geom_smooth(method = "lm") + 
+  geom_abline(slope = 1, intercept = 0)
+```
+
+And here's a pairs plot of all of the metrics in the dataframe... maybe if we stare hard enough we'll find some pattern in the `diff` or `abs_diff` columns. 
+
+```{r}
+twenty_meter_summarized %>%
+  ungroup() %>%
+  select(-c(plotID, eventID)) %>%
+  ggpairs()
+```
+
