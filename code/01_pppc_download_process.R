@@ -39,7 +39,12 @@ lapply(packages, function(x){
 
 # NEON TOS site codes to process.
 # Add or remove sites here; Script 02 will pick its target from this cache.
-sites <- c("HARV", "SCBI", "GRSM")
+#sites <- c("HARV", "SCBI", "GRSM")
+
+# modified: get list of all pppc sites
+rs <- httr::GET("https://data.neonscience.org/api/v0/products/DP1.10058.001")
+rj <- jsonlite::fromJSON(httr::content(rs, as="text"))
+sites <- rj$data$siteCodes$siteCode
 
 # NEON API token. Reads from the NEON_TOKEN environment variable.
 ## Note: I removed this from being hard coded
@@ -112,6 +117,34 @@ download_and_clean_site <- function(site, product, token, cache_dir) {
 
   # Standardise column names
   names(div_1m2) <- str_squish(names(div_1m2))
+  
+  # create full subplotID identifier
+  div_1m2$subplotFullID <- paste(div_1m2$plotID, div_1m2$subplotID, sep=".")
+  
+  # get set of records where plants were detected but taxonRank is too high
+  rankset <- div_1m2[which(div_1m2$targetTaxaPresent=="Y" & 
+                              is.na(div_1m2$otherVariablesPresent) & 
+                              !div_1m2$taxonRank %in% 
+                              c("species", "subspecies", "variety")),]
+  # get unique plots in this set
+  rankplots <- unique(rankset$subplotFullID)
+  
+  # create variables for number of records removed and % cover represented
+  div_1m2$removedNum <- 0
+  div_1m2$removedPercent <- 0
+  
+  # calculate number removed and % cover represented
+  for(j in rankplots) {
+    divj <- div_1m2[which(div_1m2$subplotFullID==j),]
+    eventsj <- unique(divj$eventID)
+    for(k in eventsj) {
+      div_1m2$removedNum[which(div_1m2$subplotFullID==j & div_1m2$eventID==k)] <- 
+        length(which(rankset$subplotFullID==j & rankset$eventID==k))
+      div_1m2$removedPercent[which(div_1m2$subplotFullID==j & div_1m2$eventID==k)] <- 
+        sum(rankset$percentCover[which(rankset$subplotFullID==j & rankset$eventID==k)], 
+            na.rm=T)
+    }
+  }
 
   div_1m2 %>%
     # Drop administrative / provenance columns not needed for analysis
@@ -177,6 +210,23 @@ if (file.exists(pppc_path)) {
   save(pppc_1m_plantDiv, file = pppc_path)
   message("Processed PPPC data saved to:\n  ", pppc_path)
 }
+
+
+# summarize data removed by subplot and event
+# removedNum and removedPercent are always the same value for each subplot and eventID combination
+removals <- aggregate(pppc_1m_plantDiv[,c("removedNum","removedPercent")], 
+                      by=list(pppc_1m_plantDiv$subplotFullID,
+                              pppc_1m_plantDiv$eventID),
+                      FUN = mean, na.rm=T)
+names(removals)[1:2] <- c("subplotFullID","eventID")
+
+# how many subplot x event combinations have any records removed?
+length(which(removals$removedNum>0))
+# 9459/89934 = 10.5%
+
+# how many subplot x event combinations have more than 5% of percent cover removed?
+length(which(removals$removedPercent>5))
+# 1873/89934 = 2%
 
 
 # ==============================================================================
