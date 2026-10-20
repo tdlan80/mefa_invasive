@@ -1,7 +1,7 @@
 # Script: 01_pppc_download_process.R
 # Purpose: Download NEON Plant Presence and Percent Cover data (DP1.10058.001)
-#          for one or more NEON sites, apply a standardised cleaning pipeline,
-#          and save a combined 1 m² subplot dataset as a local cache.
+#          for one or more NEON sites, apply a cleaning pipeline,
+#          and save a combined 1 m2 subplot dataset as a local cache.
 #
 # Output:
 #   rawData/NEON/PPPC/<SITE1_SITE2_...>_1m_plantDiv.RData
@@ -10,10 +10,10 @@
 # Run this script BEFORE 02_neon_aop_pppc.R.
 #
 # CyVerse / HPC notes:
-#   - Set NEON_TOKEN for higher API rate limits (recommended for large pulls):
+#   - Set NEON_TOKEN:
 #       export NEON_TOKEN="your_token_here"    # bash / zsh
 #       $env:NEON_TOKEN = "your_token_here"    # PowerShell
-#   - All paths are relative to the repo root (anchored by .Rproj via here()).
+#   - All paths are relative to the repo root (using .Rproj via here()).
 #   - To force a fresh download, delete the relevant rawData/NEON/PPPC/ files.
 
 # List of packages
@@ -67,7 +67,7 @@ pppc_path <- file.path(pppc_dir, paste0(cache_tag, "_1m_plantDiv.RData"))
 #'
 #' A per-site raw cache (raw_<SITE>.RData) is written on first run so that
 #' re-running the script skips the API call. Delete this file to force a fresh
-#' download (e.g. when a new NEON release is available).
+#' download.
 #'
 #' Cleaning pipeline is the same as mefaV2.R (lines 396–456):
 #'   - Drop administrative / QC columns not needed downstream
@@ -96,7 +96,7 @@ download_and_clean_site <- function(site, product, token, cache_dir) {
       site       = site,
       package    = "expanded",
       release    = "current",
-      tabl       = "div_1m2Data",   # request only the 1 m² table for efficiency
+      tabl       = "div_1m2Data",   # requesting only the 1 m2 table here
       check.size = FALSE,
       include.provisional=TRUE,
       token      = if (nzchar(token)) token else NA_character_
@@ -110,7 +110,7 @@ download_and_clean_site <- function(site, product, token, cache_dir) {
 
   # ---- Cleaning pipeline ---------------------------------------------------
 
-  # Standardise column names (remove any stray whitespace)
+  # Standardise column names
   names(div_1m2) <- str_squish(names(div_1m2))
 
   div_1m2 %>%
@@ -150,7 +150,7 @@ download_and_clean_site <- function(site, product, token, cache_dir) {
 
 
 # ==============================================================================
-# Main: build processed cache if absent ----------------------------------------
+# Main: build processed data if absent -----------------------------------------
 # ==============================================================================
 
 if (file.exists(pppc_path)) {

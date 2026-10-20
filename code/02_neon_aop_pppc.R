@@ -1,12 +1,12 @@
 # Script: 02_neon_aop_pppc.R
-# Purpose: For a target NEON site, overlay PPPC 1 m² subplot data with the
+# Purpose: For a target NEON site, overlay PPPC 1 m2 subplot data with the
 #          NEON AOP Canopy Height Model (CHM, DP3.30015.001).
 #
 # Prerequisite: run 01_pppc_download_process.R first to build the PPPC cache.
 #
 # Workflow:
-#   1. Configure target site, AOP product, and repo-relative paths
-#   2. Load processed PPPC cache (output of Script 01)
+#   1. Set target site, AOP product, and repo-relative paths
+#   2. Load processed PPPC data (output of Script 01)
 #   3. Download NEON TOS spatial data (subplot centroids) from web if not cached
 #   4. Download NEON AOP CHM tiles via the NEON API for all PPPC years
 #   5. Loop over all years with AOP tiles on disk:
@@ -17,11 +17,11 @@
 #   6. Combine all years into a single tidy data frame (pppc_final_all)
 #
 # CyVerse / HPC notes:
-#   - Set NEON_TOKEN env var for higher API rate limits:
+#   - Set NEON_TOKEN in env:
 #       export NEON_TOKEN="your_token_here"    # bash / zsh
 #       $env:NEON_TOKEN = "your_token_here"    # PowerShell
-#   - All paths are relative to the repo root (anchored by .Rproj via here()).
-#   - AOP download is skipped per-year when tiles already exist on disk.
+#   - All paths are relative to the repo root (using .Rproj via here()).
+#   - AOP download is skipped per-year when tiles already exist.
 #   - Need to build a gocmd to trandfer data from cyverse storage to instance
 
 # List of packages
@@ -167,7 +167,7 @@ if (length(missing_plots) > 0) {
 site_subplots_pppc <- site_subplots %>%
   filter(plot_subplot %in% pppc$plot_subplot)
 
-# Just checking we aren't getting anything thats not a 1 m subsplot
+# Just checking we aren't getting anything that's not a 1 m subsplot
 message("Subplot size: ",
         paste(unique(site_subplots_pppc$subpltSize), collapse = ", "))
 
@@ -181,7 +181,7 @@ dir.create(aop_dir, recursive = TRUE, showWarnings = FALSE)
 # byTileAOP() checks whether files already exist and skips them.
 # buffer = 10m just in case any of these are on the edge of AOP tiles.
 # check.size = FALSE: avoids neon asking download questions.
-# include.provisional = TRUE: gets the mos tup to date data, but they can change
+# include.provisional = TRUE: gets the most up to date data, but they can change
 for (yr in years) {
   message("\nRequesting AOP tiles for ", site, " ", yr, " ...")
   tryCatch(
