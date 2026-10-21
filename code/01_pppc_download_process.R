@@ -38,10 +38,8 @@ lapply(packages, function(x){
 # ==============================================================================
 
 # NEON TOS site codes to process.
-# Add or remove sites here; Script 02 will pick its target from this cache.
-#sites <- c("HARV", "SCBI", "GRSM")
 
-# modified: get list of all pppc sites
+# get list of all pppc sites
 rs <- httr::GET("https://data.neonscience.org/api/v0/products/DP1.10058.001")
 rj <- jsonlite::fromJSON(httr::content(rs, as="text"))
 sites <- rj$data$siteCodes$siteCode
@@ -61,7 +59,7 @@ pppc_dir <- file.path(raw_dir, "PPPC")
 # This is tagging the site name to the directory so we don't have to redownload
 # the same site data every time
 cache_tag <- paste(sort(sites), collapse = "_")
-pppc_path <- file.path(pppc_dir, paste0(cache_tag, "_1m_plantDiv.RData"))
+pppc_path <- file.path(pppc_dir, paste0("full", "_1m_plantDiv.RData"))
 
 
 # ==============================================================================
@@ -241,3 +239,4 @@ message("Plot/subplot: ", length(unique(pppc_1m_plantDiv$plot_subplot)))
 message("Rows        : ", nrow(pppc_1m_plantDiv))
 message("nativeStatusCode values: ",
         paste(sort(unique(pppc_1m_plantDiv$nativeStatusCode)), collapse = ", "))
+
