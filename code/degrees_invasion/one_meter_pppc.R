@@ -35,6 +35,8 @@ subplot_df <- pppc_1m_plantDiv %>%
             b = inv.cov / tot.cov,
             di = (s + b)/2)
 
+write.csv(subplot_df, file.path("processedData", "subplot_di.csv"))
+
 # Aggregate to the plot level ---------------------------------------------
 
 # We wanna aggregate the s, b, and di metrics from the subplot_df 
@@ -53,6 +55,8 @@ plot_df <- subplot_df %>%
             di.agg.sum = (s.agg.sum + b.agg.sum)/2,
             di.agg.mean = (s.agg.mean + b.agg.mean)/2, 
             di.mean.squared = mean(di))
+
+write.csv(plot_df, file.path("processedData", "plot_di.csv"))
 
 # making a plot to very that the two di mean values are equivalent
 
