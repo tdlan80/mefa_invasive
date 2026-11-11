@@ -1,3 +1,8 @@
+## Large data to ignore
+
+# rawData
+rawData/pppc_allScales.rds
+
 # History files
 .Rhistory
 .Rapp.history
